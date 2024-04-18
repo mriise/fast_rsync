@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Run tests
       run: cargo test --all-targets
     - name: Run tests in release mode
@@ -19,7 +19,7 @@ jobs:
   build-i686:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install cross
       run: cargo install cross --git https://github.com/cross-rs/cross
     - name: Run tests (i686)
@@ -30,7 +30,7 @@ jobs:
   build-aarch64:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install cross
       run: cargo install cross --git https://github.com/cross-rs/cross
     - name: Run tests (aarch64)
@@ -41,6 +41,6 @@ jobs:
   fuzzer:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build fuzzer
       run: cd fuzz; cargo test
