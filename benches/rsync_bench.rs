@@ -52,6 +52,7 @@ fn calculate_signature(c: &mut Criterion) {
                     SignatureOptions {
                         block_size: 4096,
                         crypto_hash_size: 8,
+                        signature_type: fast_rsync::SignatureType::Md4,
                     },
                 )
                 .into_serialized();
@@ -91,6 +92,7 @@ fn bench_diff(
         SignatureOptions {
             block_size: 4096,
             crypto_hash_size: 8,
+            signature_type: fast_rsync::SignatureType::Md4,
         },
     )
     .into_serialized();
@@ -163,6 +165,7 @@ fn apply_delta(c: &mut Criterion) {
             SignatureOptions {
                 block_size: 4096,
                 crypto_hash_size: 8,
+                signature_type: fast_rsync::SignatureType::Md4,
             },
         )
         .index(),

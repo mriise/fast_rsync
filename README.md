@@ -6,8 +6,7 @@
 [Documentation](https://docs.rs/fast_rsync)
 
 A faster implementation of [librsync](https://github.com/librsync/librsync) in
-pure Rust, using SIMD operations where available. Note that only the legacy MD4
-format is supported, not BLAKE2.
+pure Rust, using SIMD operations where available (for md4 only).
 
 SIMD is currently supported on x86, x86-64, and aarch64 targets.
 
@@ -35,10 +34,10 @@ of some file `foo`, and host B would like to acquire A's copy.
 3. Host B attempts to `apply` the delta to `foo_B`. The resulting data is
    _probably_ (\*) equal to `foo_A`.
 
-(\*) Note the caveat. `fast_rsync` signatures use the insecure MD4 algorithm.
-Therefore, you should not trust that `diff` will produce a correct delta. You
+(\*) Note the caveat. `fast_rsync` can use the insecure MD4 algorithm.
+Therefore, you should not always trust that `diff` will produce a correct delta. You
 must always verify the integrity of the output of `apply` using some other
-mechanism, such as a cryptographic hash function like SHA-256.
+mechanism, such as a cryptographic hash function like SHA-256 or by using blake2 signatures.
 
 ## Benchmarks
 These were taken on a noisy laptop with a `Intel(R) Core(TM) i7-6820HQ CPU @

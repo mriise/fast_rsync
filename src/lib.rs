@@ -27,4 +27,6 @@ mod tests;
 
 pub use diff::{diff, DiffError};
 pub use patch::{apply, apply_limited, ApplyError};
-pub use signature::{IndexedSignature, Signature, SignatureOptions, SignatureParseError};
+pub use signature::{
+    IndexedSignature, Signature, SignatureOptions, SignatureParseError, SignatureType,
+};

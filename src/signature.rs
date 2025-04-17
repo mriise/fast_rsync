@@ -3,12 +3,24 @@ use std::error::Error;
 use std::fmt;
 
 use arrayref::array_ref;
+use blake2::digest::consts::U32;
+use blake2::Digest;
 
 use crate::consts::{BLAKE2_MAGIC, MD4_MAGIC};
 use crate::crc::Crc;
 use crate::hasher::BuildCrcHasher;
 use crate::hashmap_variant::SecondLayerMap;
 use crate::md4::{md4, md4_many, MD4_SIZE};
+
+pub const MAX_STRONG_SUM_LEN: usize = 32;
+
+pub fn blake2(data: &[u8]) -> [u8; MAX_STRONG_SUM_LEN] {
+    // Blake2b produces a 32-byte hash by default
+    let result = blake2::Blake2b::<U32>::digest(data);
+    let mut output = [0u8; MAX_STRONG_SUM_LEN];
+    output.copy_from_slice(&result[..32]);
+    output
+}
 
 /// An rsync signature.
 ///
@@ -35,10 +47,11 @@ pub struct IndexedSignature<'a> {
 }
 
 /// The hash type used with within the signature.
-/// Note that this library generally only supports MD4 signatures.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) enum SignatureType {
+pub enum SignatureType {
+    /// md4
     Md4,
+    /// blake2b-256
     Blake2,
 }
 
@@ -81,6 +94,8 @@ pub struct SignatureOptions {
     /// The number of bytes to use from the MD4 hash. Must be at most 16.
     /// The larger this is, the less likely that a delta will be mis-applied.
     pub crypto_hash_size: u32,
+    /// The hash algorithm to use.
+    pub signature_type: SignatureType,
 }
 
 impl Signature {
@@ -92,10 +107,14 @@ impl Signature {
     /// Panics if the provided options are invalid.
     pub fn calculate(buf: &[u8], options: SignatureOptions) -> Signature {
         assert!(options.block_size > 0);
-        assert!(options.crypto_hash_size <= MD4_SIZE as u32);
-        let num_blocks = buf.chunks(options.block_size as usize).len();
 
-        let signature_type = SignatureType::Md4;
+        let signature_type = options.signature_type;
+        match signature_type {
+            SignatureType::Md4 => assert!(options.crypto_hash_size <= MD4_SIZE as u32),
+            SignatureType::Blake2 => assert!(options.crypto_hash_size <= MAX_STRONG_SUM_LEN as u32),
+        }
+
+        let num_blocks = buf.chunks(options.block_size as usize).len();
 
         let mut signature = Vec::with_capacity(
             Self::HEADER_SIZE + num_blocks * (Crc::SIZE + options.crypto_hash_size as usize),
@@ -105,24 +124,45 @@ impl Signature {
         signature.extend_from_slice(&options.block_size.to_be_bytes());
         signature.extend_from_slice(&options.crypto_hash_size.to_be_bytes());
 
-        // Hash all the blocks (with the CRC as well as MD4)
-        let chunks = buf.chunks_exact(options.block_size as usize);
-        let remainder = chunks.remainder();
-        for (block, md4_hash) in md4_many(chunks).chain(if remainder.is_empty() {
-            None
-        } else {
-            // Manually tack on the last block if necessary, since `md4_many`
-            // requires every block to be identical in size
-            Some((remainder, md4(remainder)))
-        }) {
-            // would be nice to use `chunks_exact_mut`, but it doesn't work for zero sizes
-            let crc = Crc::new().update(block);
-            let crypto_hash = &md4_hash[..options.crypto_hash_size as usize];
-            signature.extend_from_slice(&crc.to_bytes());
-            signature.extend_from_slice(crypto_hash);
+        match signature_type {
+            SignatureType::Md4 => {
+                // Original MD4 implementation
+                let chunks = buf.chunks_exact(options.block_size as usize);
+                let remainder = chunks.remainder();
+                for (block, md4_hash) in md4_many(chunks).chain(if remainder.is_empty() {
+                    None
+                } else {
+                    Some((remainder, md4(remainder)))
+                }) {
+                    let crc = Crc::new().update(block);
+                    let crypto_hash = &md4_hash[..options.crypto_hash_size as usize];
+                    signature.extend_from_slice(&crc.to_bytes());
+                    signature.extend_from_slice(crypto_hash);
+                }
+            }
+            SignatureType::Blake2 => {
+                // New Blake2 implementation
+                let chunks = buf.chunks_exact(options.block_size as usize);
+                let remainder = chunks.remainder();
+                for (block, blake2_hash) in
+                    chunks
+                        .map(|chunk| (chunk, blake2(chunk)))
+                        .chain(if remainder.is_empty() {
+                            None
+                        } else {
+                            Some((remainder, blake2(remainder)))
+                        })
+                {
+                    let crc = Crc::new().update(block);
+                    let crypto_hash = &blake2_hash[..options.crypto_hash_size as usize];
+                    signature.extend_from_slice(&crc.to_bytes());
+                    signature.extend_from_slice(crypto_hash);
+                }
+            }
         }
+
         Signature {
-            signature_type: SignatureType::Md4,
+            signature_type,
             block_size: options.block_size,
             crypto_hash_size: options.crypto_hash_size,
             signature,
