@@ -6,7 +6,7 @@
 [Documentation](https://docs.rs/fast_rsync)
 
 A faster implementation of [librsync](https://github.com/librsync/librsync) in
-pure Rust, using SIMD operations where available (for md4 only).
+pure Rust, using SIMD operations where available.
 
 SIMD is currently supported on x86, x86-64, and aarch64 targets.
 

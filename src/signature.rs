@@ -3,8 +3,6 @@ use std::error::Error;
 use std::fmt;
 
 use arrayref::array_ref;
-use blake2::digest::consts::U32;
-use blake2::Digest;
 
 use crate::consts::{BLAKE2_MAGIC, MD4_MAGIC};
 use crate::crc::Crc;
@@ -16,9 +14,9 @@ pub const MAX_STRONG_SUM_LEN: usize = 32;
 
 pub fn blake2(data: &[u8]) -> [u8; MAX_STRONG_SUM_LEN] {
     // Blake2b produces a 32-byte hash by default
-    let result = blake2::Blake2b::<U32>::digest(data);
+    let result = blake2b_simd::Params::new().hash_length(32).hash(data);
     let mut output = [0u8; MAX_STRONG_SUM_LEN];
-    output.copy_from_slice(&result[..32]);
+    output.copy_from_slice(&result.as_bytes()[..32]);
     output
 }
 

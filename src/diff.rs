@@ -3,9 +3,6 @@ use std::error::Error;
 use std::fmt;
 use std::io::{self, Write};
 
-use blake2::digest::consts::U32;
-use blake2::Digest;
-
 use crate::consts::{
     DELTA_MAGIC, RS_OP_COPY_N1_N1, RS_OP_END, RS_OP_LITERAL_1, RS_OP_LITERAL_N1, RS_OP_LITERAL_N2,
     RS_OP_LITERAL_N4, RS_OP_LITERAL_N8,
@@ -205,11 +202,12 @@ pub fn diff(
                         match signature.signature_type {
                             SignatureType::Md4 => o[..16]
                                 .copy_from_slice(&md4(&data[here..here + block_size as usize])),
-                            SignatureType::Blake2 => {
-                                o.copy_from_slice(&blake2::Blake2b::<U32>::digest(
-                                    &data[here..here + block_size as usize],
-                                ))
-                            }
+                            SignatureType::Blake2 => o.copy_from_slice(
+                                &blake2b_simd::Params::new()
+                                    .hash_length(32)
+                                    .hash(&data[here..here + block_size as usize])
+                                    .as_bytes(),
+                            ),
                         }
                         o
                     };
